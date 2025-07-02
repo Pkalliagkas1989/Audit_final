@@ -79,6 +79,7 @@ func createTables(db *sql.DB) error {
 	tableStatements := []string{
 		config.CreateUserTable,
 		config.CreateUserAuthTable,
+		config.CreateUserProvidersTable,
 		config.CreateSessionsTable,
 		config.CreateCategoriesTable,
 		config.CreatePostsTable,
@@ -117,6 +118,8 @@ func createIndexes(db *sql.DB) error {
 		config.IdxReactionsUserID,
 		config.IdxReactionsPostID,
 		config.IdxReactionsCommentID,
+		config.IdxUserProvidersUserID,
+		config.IdxUserProvidersProvider,
 	}
 
 	// Execute each index creation statement

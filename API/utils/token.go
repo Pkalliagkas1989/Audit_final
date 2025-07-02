@@ -32,3 +32,8 @@ func GenerateCSRFToken() string {
 	}
 	return hex.EncodeToString(bytes)
 }
+
+// GenerateState creates a random OAuth state string
+func GenerateState() string {
+	return GenerateCSRFToken()
+}

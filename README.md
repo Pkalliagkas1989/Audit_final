@@ -21,6 +21,7 @@ A modern, full-stack web forum application featuring secure user authentication,
 ## Features
 
 - User registration, login, and logout
+- OAuth login via Google and GitHub
 - Create, edit, and delete posts
 - Comment on posts
 - Like/dislike posts and comments
@@ -50,6 +51,16 @@ A modern, full-stack web forum application featuring secure user authentication,
 ```sh
 git clone https://github.com/yourusername/nexxus-forum.git
 cd forum
+```
+
+### OAuth Environment Variables
+Before running the backend you need to provide OAuth credentials:
+
+```sh
+export GOOGLE_CLIENT_ID=<your-google-client-id>
+export GOOGLE_CLIENT_SECRET=<your-google-client-secret>
+export GITHUB_CLIENT_ID=<your-github-client-id>
+export GITHUB_CLIENT_SECRET=<your-github-client-secret>
 ```
 
 ## Running the Project
@@ -146,6 +157,13 @@ curl -X POST http://localhost:8080/forum/api/session/login \
   -d '{"email":"test@example.com","password":"password123"}' \
   -c cookies.txt
 ```
+### OAuth Login
+Open one of the following URLs in your browser:
+
+- `http://localhost:8080/forum/api/oauth/google/login`
+- `http://localhost:8080/forum/api/oauth/github/login`
+
+After granting access, the server creates a session and redirects back.
 ### Logout
 ```sh
 curl -X POST http://localhost:8080/forum/api/session/logout \

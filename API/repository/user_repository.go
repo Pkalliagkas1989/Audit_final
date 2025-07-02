@@ -15,6 +15,7 @@ var (
 	ErrEmailTaken         = errors.New("email is already taken")
 	ErrUsernameTaken      = errors.New("username is already taken")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrPasswordNotSet     = errors.New("password not set")
 )
 
 // UserRepository handles user-related database operations
@@ -155,12 +156,12 @@ func (r *UserRepository) GetByID(id string) (*models.User, error) {
 // GetAuthByUserID retrieves user authentication data by user ID
 func (r *UserRepository) GetAuthByUserID(userID string) (*models.UserAuth, error) {
 	var auth models.UserAuth
+	var pw sql.NullString
 
 	err := r.DB.QueryRow(
 		"SELECT user_id, password_hash FROM user_auth WHERE user_id = ?",
 		userID,
-	).Scan(&auth.UserID, &auth.PasswordHash)
-
+	).Scan(&auth.UserID, &pw)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrUserNotFound
@@ -168,6 +169,9 @@ func (r *UserRepository) GetAuthByUserID(userID string) (*models.UserAuth, error
 		return nil, err
 	}
 
+	if pw.Valid {
+		auth.PasswordHash = pw.String
+	}
 	return &auth, nil
 }
 
@@ -191,9 +195,78 @@ func (r *UserRepository) Authenticate(login models.UserLogin) (*models.User, err
 	fmt.Println("Password match?", utils.CheckPasswordHash(login.Password, auth.PasswordHash))
 
 	// Check the password
+	if auth.PasswordHash == "" {
+		return nil, ErrPasswordNotSet
+	}
 	if !utils.CheckPasswordHash(login.Password, auth.PasswordHash) {
 		return nil, ErrInvalidCredentials
 	}
 
 	return user, nil
+}
+
+// SetPassword sets a new password for the user
+func (r *UserRepository) SetPassword(userID, password string) error {
+	hash, err := utils.HashPassword(password)
+	if err != nil {
+		return err
+	}
+	_, err = r.DB.Exec("UPDATE user_auth SET password_hash=? WHERE user_id=?", hash, userID)
+	return err
+}
+
+// GetOrCreateOAuthUser creates or links a user based on OAuth provider details
+func (r *UserRepository) GetOrCreateOAuthUser(email, username, provider, providerID string) (*models.User, error) {
+	// Check if provider link exists
+	var userID string
+	err := r.DB.QueryRow("SELECT user_id FROM user_providers WHERE provider=? AND provider_id=?", provider, providerID).Scan(&userID)
+	if err == nil {
+		return r.GetByID(userID)
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	// If user with email exists, link provider
+	user, err := r.GetByEmail(email)
+	if err == nil {
+		_, err = r.DB.Exec("INSERT OR IGNORE INTO user_providers (user_id, provider, provider_id) VALUES (?, ?, ?)", user.ID, provider, providerID)
+		if err != nil {
+			return nil, err
+		}
+		return user, nil
+	} else if err != ErrUserNotFound {
+		return nil, err
+	}
+
+	// Create new user
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	uid := utils.GenerateUUID()
+	now := time.Now()
+	if username == "" {
+		username = provider + "_user"
+	}
+	_, err = tx.Exec("INSERT INTO user (user_id, username, email, created_at) VALUES (?, ?, ?, ?)", uid, username, email, now)
+	if err != nil {
+		return nil, err
+	}
+	// Create auth record with NULL password
+	_, err = tx.Exec("INSERT INTO user_auth (user_id, password_hash) VALUES (?, NULL)", uid)
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec("INSERT INTO user_providers (user_id, provider, provider_id) VALUES (?, ?, ?)", uid, provider, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &models.User{ID: uid, Username: username, Email: email, CreatedAt: now}, nil
 }

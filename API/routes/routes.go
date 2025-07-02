@@ -13,6 +13,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	// Create repositories
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
+	providerRepo := repository.NewUserProviderRepository(db)
 
 	categoryRepo := repository.NewCategoryRepository(db)
 	postRepo := repository.NewPostRepository(db)
@@ -21,6 +22,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(userRepo, sessionRepo)
+	oauthHandler := handlers.NewOAuthHandler(userRepo, providerRepo, sessionRepo)
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	postHandler := handlers.NewPostHandler(postRepo)
 	myPostsHandler := handlers.NewMyPostsHandler(postRepo, commentRepo, reactionRepo)
@@ -43,6 +45,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("/forum/api/allData", corsMiddleware.Handler(http.HandlerFunc(guestHandler.GetGuestData)))
 	mux.Handle("/forum/api/register", corsMiddleware.Handler(http.HandlerFunc(registerLimiter.Limit(authHandler.Register))))
 	mux.Handle("/forum/api/session/login", corsMiddleware.Handler(http.HandlerFunc(authHandler.Login)))
+	mux.Handle("/forum/api/oauth/google/login", corsMiddleware.Handler(http.HandlerFunc(oauthHandler.GoogleLogin)))
+	mux.Handle("/forum/api/oauth/google/callback", corsMiddleware.Handler(http.HandlerFunc(oauthHandler.GoogleCallback)))
+	mux.Handle("/forum/api/oauth/github/login", corsMiddleware.Handler(http.HandlerFunc(oauthHandler.GithubLogin)))
+	mux.Handle("/forum/api/oauth/github/callback", corsMiddleware.Handler(http.HandlerFunc(oauthHandler.GithubCallback)))
 	mux.Handle("/forum/api/session/logout", corsMiddleware.Handler(http.HandlerFunc(authHandler.Logout)))
 	mux.Handle("/forum/api/session/verify", corsMiddleware.Handler(http.HandlerFunc(authHandler.VerifySession)))
 
@@ -56,6 +62,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("/forum/api/user/liked", protected(http.HandlerFunc(likedPostsHandler.GetLikedPosts)))
 	mux.Handle("/forum/api/comments", protected(http.HandlerFunc(commentHandler.CreateComment)))
 	mux.Handle("/forum/api/react", protected(http.HandlerFunc(reactionHandler.React)))
+	mux.Handle("/forum/api/user/set-password", protected(http.HandlerFunc(authHandler.SetPassword)))
 
 	// Global auth injection
 	return authMiddleware.Authenticate(mux)

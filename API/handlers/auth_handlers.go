@@ -127,14 +127,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.UserRepo.Authenticate(login)
 
 	if err != nil {
-		if err == repository.ErrInvalidCredentials {
+		switch err {
+		case repository.ErrInvalidCredentials:
 			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		} else {
+			return
+		case repository.ErrPasswordNotSet:
+			http.Error(w, "Password not set for this account", http.StatusForbidden)
+			return
+		default:
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
-		return
 	}
-	csrfToken := utils.GenerateCSRFToken()	
+	csrfToken := utils.GenerateCSRFToken()
 
 	// Create a new session
 	log.Println("Creating session for user:", user.ID)
@@ -147,15 +152,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Set cookie
 	http.SetCookie(w, &http.Cookie{
-    Name:     "session_id",
-    Value:    session.SessionID,
-    Path:     "/",
-    Expires:  session.ExpiresAt,
-    HttpOnly: true,
-    Secure:   false,
-    SameSite: http.SameSiteLaxMode, // Change from None to Lax for localhost
-})
-
+		Name:     "session_id",
+		Value:    session.SessionID,
+		Path:     "/",
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode, // Change from None to Lax for localhost
+	})
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
@@ -224,4 +228,38 @@ func (h *AuthHandler) VerifySession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, user, http.StatusOK)
+}
+
+// SetPassword allows an OAuth user to set a local password
+func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.ErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		return
+	}
+	session, err := h.SessionRepo.GetBySessionID(sessionCookie.Value)
+	if err != nil {
+		http.Error(w, "Session invalid", http.StatusUnauthorized)
+		return
+	}
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if !utils.IsStrongPassword(req.Password) {
+		utils.ErrorResponse(w, "weak password", http.StatusBadRequest)
+		return
+	}
+	if err := h.UserRepo.SetPassword(session.UserID, req.Password); err != nil {
+		utils.ErrorResponse(w, "could not set password", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
