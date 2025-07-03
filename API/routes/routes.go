@@ -45,6 +45,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("/forum/api/session/login", corsMiddleware.Handler(http.HandlerFunc(authHandler.Login)))
 	mux.Handle("/forum/api/session/logout", corsMiddleware.Handler(http.HandlerFunc(authHandler.Logout)))
 	mux.Handle("/forum/api/session/verify", corsMiddleware.Handler(http.HandlerFunc(authHandler.VerifySession)))
+	mux.Handle("/forum/api/oauth/google/login", corsMiddleware.Handler(http.HandlerFunc(authHandler.GoogleLogin)))
+	mux.Handle("/forum/api/oauth/google/callback", corsMiddleware.Handler(http.HandlerFunc(authHandler.GoogleCallback)))
+	mux.Handle("/forum/api/oauth/github/login", corsMiddleware.Handler(http.HandlerFunc(authHandler.GitHubLogin)))
+	mux.Handle("/forum/api/oauth/github/callback", corsMiddleware.Handler(http.HandlerFunc(authHandler.GitHubCallback)))
 
 	// Protected routes with CSRF
 	protected := func(h http.Handler) http.Handler {

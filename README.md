@@ -21,6 +21,7 @@ A modern, full-stack web forum application featuring secure user authentication,
 ## Features
 
 - User registration, login, and logout
+- Login via Google or GitHub OAuth
 - Create, edit, and delete posts
 - Comment on posts
 - Like/dislike posts and comments
@@ -146,6 +147,11 @@ curl -X POST http://localhost:8080/forum/api/session/login \
   -d '{"email":"test@example.com","password":"password123"}' \
   -c cookies.txt
 ```
+### Login with Google
+Visit: `http://localhost:8080/forum/api/oauth/google/login`
+
+### Login with GitHub
+Visit: `http://localhost:8080/forum/api/oauth/github/login`
 ### Logout
 ```sh
 curl -X POST http://localhost:8080/forum/api/session/logout \

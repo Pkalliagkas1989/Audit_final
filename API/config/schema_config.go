@@ -1,7 +1,5 @@
 package config
 
-import ()
-
 const CreatePostCategoriesTable = `CREATE TABLE IF NOT EXISTS post_categories (
     post_id TEXT NOT NULL,
     category_id INTEGER NOT NULL,
@@ -9,7 +7,6 @@ const CreatePostCategoriesTable = `CREATE TABLE IF NOT EXISTS post_categories (
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
 );`
-
 
 const CreateUserTable = `CREATE TABLE IF NOT EXISTS user (
             user_id TEXT PRIMARY KEY,
@@ -24,6 +21,15 @@ const CreateUserAuthTable = `CREATE TABLE IF NOT EXISTS user_auth (
             FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
         );`
 
+const CreateUserProvidersTable = `CREATE TABLE IF NOT EXISTS user_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    UNIQUE(provider, provider_id),
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
+);`
+
 const CreateSessionsTable = `CREATE TABLE IF NOT EXISTS sessions (
     user_id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL UNIQUE,
@@ -34,12 +40,11 @@ const CreateSessionsTable = `CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
 );`
 
-
 const CreateCategoriesTable = `CREATE TABLE IF NOT EXISTS categories (
             category_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE CHECK (LENGTH(name) <= 100)
         );`
-		
+
 const CreatePostsTable = `CREATE TABLE IF NOT EXISTS posts (
     post_id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -49,7 +54,6 @@ const CreatePostsTable = `CREATE TABLE IF NOT EXISTS posts (
     updated_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
 );`
-
 
 const CreateCommentsTable = `CREATE TABLE IF NOT EXISTS comments (
             comment_id TEXT PRIMARY KEY,

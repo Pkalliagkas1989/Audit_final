@@ -197,3 +197,59 @@ func (r *UserRepository) Authenticate(login models.UserLogin) (*models.User, err
 
 	return user, nil
 }
+
+// GetByProvider retrieves a user by OAuth provider and ID
+func (r *UserRepository) GetByProvider(provider, providerID string) (*models.User, error) {
+	var user models.User
+	var createdAt time.Time
+	err := r.DB.QueryRow(`SELECT u.user_id, u.username, u.email, u.created_at
+                FROM user u
+                JOIN user_providers up ON u.user_id = up.user_id
+                WHERE up.provider = ? AND up.provider_id = ?`, provider, providerID).
+		Scan(&user.ID, &user.Username, &user.Email, &createdAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	user.CreatedAt = createdAt
+	return &user, nil
+}
+
+// LinkProvider associates an existing user with an OAuth provider
+func (r *UserRepository) LinkProvider(userID, provider, providerID string) error {
+	_, err := r.DB.Exec(`INSERT OR IGNORE INTO user_providers (user_id, provider, provider_id)
+                VALUES (?, ?, ?)`, userID, provider, providerID)
+	return err
+}
+
+// CreateWithProvider creates a new user without a password and links the provider
+func (r *UserRepository) CreateWithProvider(username, email, provider, providerID string) (*models.User, error) {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	userID := utils.GenerateUUID()
+	createdAt := time.Now()
+
+	_, err = tx.Exec(`INSERT INTO user (user_id, username, email, created_at) VALUES (?, ?, ?, ?)`,
+		userID, username, email, createdAt)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(`INSERT INTO user_providers (user_id, provider, provider_id) VALUES (?, ?, ?)`,
+		userID, provider, providerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &models.User{ID: userID, Username: username, Email: email, CreatedAt: createdAt}, nil
+}

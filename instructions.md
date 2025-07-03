@@ -19,6 +19,12 @@ curl -X POST http://localhost:8080/forum/api/session/login \
   -d '{"email":"test@example.com","password":"password123"}' \
   -c cookies.txt
 
+## Login with Google
+Visit: http://localhost:8080/forum/api/oauth/google/login
+
+## Login with GitHub
+Visit: http://localhost:8080/forum/api/oauth/github/login
+
 ## Logout
 
 curl -X POST http://localhost:8080/forum/api/session/logout \
